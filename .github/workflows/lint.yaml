@@ -39,7 +39,7 @@ jobs:
       if: ${{ matrix.linter == 'pylint' }} 
       name: Lint with pylint
       run: |
-        pylint $(find */ -name "*.py" | xargs)
+        pylint $(find exigence/ -name "*.py" | xargs)
     
     - 
       if: ${{ matrix.linter == 'pytype' }}

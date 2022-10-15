@@ -1,6 +1,6 @@
 """ test: hyperance.main """
 
-from hyperance import main
+from exigence import main
 
 
 def test_main():
