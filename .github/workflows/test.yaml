@@ -1,0 +1,89 @@
+name: test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+concurrency: 
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -l {0}
+    strategy:
+      fail-fast: true
+      matrix:
+        backend: ["tf"]
+        pysrc: ["system"]
+        python-version: ["3.7", "3.8", "3.10"]
+        os: ["ubuntu-latest"]
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - 
+      if: ${{ matrix.pysrc == 'system' }}
+      name: Set up Python ${{ matrix.python-version }} from system
+      uses: actions/setup-python@v4.2.0
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    -
+      if: ${{ matrix.pysrc == 'conda' }} 
+      name: Set up Python ${{ matrix.python-version }} from conda
+      uses: conda-incubator/setup-miniconda@v2
+      with:
+        miniforge-variant: Mambaforge
+        miniforge-version: latest
+        python-version: ${{ matrix.python-version }}
+        mamba-version: "*"
+        channels: conda-forge
+        auto-activate-base: false
+        activate-environment: test
+        auto-update-conda: true
+        channel-priority: strict
+
+    -
+      if: ${{ matrix.backend == 'tf' }}
+      name: Install tf dependencies
+      run: |
+        if [[ ${{ matrix.pysrc }} == "conda" ]]; then
+          CONDA_OVERRIDE_CUDA="11.2" mamba install tensorflow jax jaxlib  --yes
+        else
+          python -m pip install tensorflow keras-cv jaxlib jax
+        fi
+
+    -
+      if: ${{ matrix.backend == 'pt' }}
+      name: Install pt dependencies
+      run: |
+        if [[ ${{ matrix.pysrc }} == "conda" ]]; then
+          CONDA_OVERRIDE_CUDA="11.2" mamba install pytorch torchvision --yes
+        else
+          python -m pip install torch torchvision
+        fi
+
+    -
+      name: Install other dependencies
+      run: |
+        if [[ ${{ matrix.pysrc }} == "conda" ]]; then
+          mamba update --all --yes
+          CONDA_OVERRIDE_CUDA="11.2" mamba install pytest fsspec gcsfs s3fs adlfs h5py pyyaml netcdf4  --yes
+          mamba clean -aqy
+        else
+          python -m pip install -U pip
+          python -m pip install ".[test]"
+        fi
+        python -m pip install .
+        python -m pip cache purge
+
+    -
+      name: Test with pytest
+      run: |
+        PDGM_BACK=${{ matrix.backend }} pytest -vv -rA
