@@ -1,10 +1,7 @@
 def read_lines_from_file(filename, strip=True):
     with open(filename, 'r') as fname:
         raw_lines = fname.readlines()
-    if strip:
-        return [line.strip() for line in raw_lines]
-    else:
-        return raw_lines
+    return [line.strip() for line in raw_lines] if strip else raw_lines
 
 def download_files_from_url(url, dest):
     import urllib
